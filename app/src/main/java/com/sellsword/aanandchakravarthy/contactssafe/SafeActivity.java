@@ -7,7 +7,11 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.pm.PackageManager;
+import android.graphics.Canvas;
+import android.graphics.Paint;
 import android.os.Environment;
+import android.print.PrintAttributes;
+import android.print.pdf.PrintedPdfDocument;
 import android.support.v4.app.ActivityCompat;
 import android.support.v4.content.ContextCompat;
 import android.support.v4.content.LocalBroadcastManager;
@@ -23,6 +27,7 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.OutputStreamWriter;
 import java.util.ArrayList;
+import android.graphics.pdf.PdfDocument;
 
 public class SafeActivity extends AppCompatActivity {
     private static final int MY_PERMISSIONS_REQUEST_READ_CONTACTS = 73;
@@ -70,7 +75,8 @@ public class SafeActivity extends AppCompatActivity {
         exportBtn.setOnClickListener(new View.OnClickListener(){
             @Override
             public void onClick(View v){
-                exportToText(mycontacts);
+                //exportToFile(mycontacts,OUTPUTFORMAT.TXT);
+                exportToFile(mycontacts,OUTPUTFORMAT.PDF);
             }
         });
         convertBtn = (Button)findViewById(R.id.convertButton);
@@ -119,28 +125,27 @@ public class SafeActivity extends AppCompatActivity {
         );
     }
 
-    public void exportToText(ArrayList<ContactRep> contactsrep)  {
+    public void exportToFile(ArrayList<ContactRep> contactsrep,OUTPUTFORMAT format)  {
         //File txtfile = getDocumentStorageDir("sample.txt");
         File path = Environment.getExternalStoragePublicDirectory(
                 Environment.DIRECTORY_DOCUMENTS);
         Log.d("vasanth",path.getAbsolutePath());
         Log.d("vasanth","size is " + contactsrep.size());
-        File txtfile = new File(path, "sample.txt");
+        File txtfile = new File(path, "sample" + format.ext);
         try {
             if(!path.mkdirs()){
                 Log.d("vasanth","Directory not created");
             }
             FileOutputStream fos = new FileOutputStream(txtfile);
-            OutputStreamWriter outDataWriter  = new OutputStreamWriter(fos);
-            for(ContactRep rep:contactsrep) {
-                outDataWriter.write("\n"+rep.name);
-
-                for(String no:rep.phoneno){
-                    outDataWriter.write(" " + no);
-                }
+            if (format == OUTPUTFORMAT.TXT){
+                writeTextContents(fos,contactsrep);
             }
-            outDataWriter.flush();
-            outDataWriter.close();
+            else if (format == OUTPUTFORMAT.PDF){
+                writeToPDFContents(fos,contactsrep);
+            }
+            else if (format == OUTPUTFORMAT.XML){
+                //TODO
+            }
             fos.flush();
             fos.close();
 
@@ -149,6 +154,92 @@ public class SafeActivity extends AppCompatActivity {
             Log.e("vasanth","exception when handling file");
         }
 
+    }
+
+    private PrintAttributes getPrintAttributes() {
+        PrintAttributes.Builder builder = new PrintAttributes.Builder().setMediaSize(PrintAttributes.MediaSize.ISO_A4)
+                .setResolution(new PrintAttributes.Resolution("res1","Resolution",50,50)).setMinMargins(new PrintAttributes.Margins(5, 5, 5, 5));
+        PrintAttributes printAttributes = builder.build();
+        return printAttributes;
+    }
+
+    private View getContentView() {
+        return findViewById(R.id.RelativeMainLayout);
+    }
+
+    private ArrayList<ContactRep> duplicateContacts(ArrayList<ContactRep> input){
+        ArrayList<ContactRep> newreps = new ArrayList<ContactRep>();
+        for(int i=0;i<10;i++){
+            newreps.addAll(input);
+        }
+        return newreps;
+    }
+
+    private void writeToPDFContents(FileOutputStream fos,ArrayList<ContactRep> contactsrep) throws IOException {
+        // open a new document
+        //contactsrep = duplicateContacts(contactsrep);
+        PrintedPdfDocument document = new PrintedPdfDocument(this,
+                getPrintAttributes());
+        // start a page
+        int pageno = 0;
+        PdfDocument.Page page = document.startPage(pageno);
+        // draw something on the page
+        //View content = getContentView();
+        Canvas mycanvas = page.getCanvas();
+
+        Paint black = new Paint();
+        black.setAntiAlias(true);
+        black.setARGB(255, 0, 0, 0);
+        black.setTextSize(16);
+        //mycanvas.drawPaint(black);
+        String output = new String();
+        int x = 10;
+        int y = 25;
+        int height = mycanvas.getHeight();
+
+        for(ContactRep rep:contactsrep){
+            output = rep.name;
+            for(String no:rep.phoneno){
+                output = output + " " + no;
+            }
+            if(y >= height){
+                y = 25;
+                document.finishPage(page);
+                pageno = pageno + 1;
+                page = document.startPage(pageno);
+                mycanvas = page.getCanvas();
+            }
+            mycanvas.drawText(output,x,y,black);
+            y = y + 20;
+        }
+        Log.d("vasanth",output.toString());
+
+        //page.
+
+        //content.draw(page.getCanvas());
+
+        // finish the page
+        document.finishPage(page);
+
+        // add more pages
+
+        // write the document content
+        document.writeTo(fos);
+
+        //close the document
+        document.close();
+    }
+    private void writeTextContents (FileOutputStream fos,ArrayList<ContactRep> contactsrep) throws IOException {
+        OutputStreamWriter outDataWriter  = new OutputStreamWriter(fos);
+        for(ContactRep rep:contactsrep) {
+            outDataWriter.write("\n"+rep.name);
+
+            for(String no:rep.phoneno){
+                outDataWriter.write(" " + no);
+            }
+        }
+        outDataWriter.flush();
+        outDataWriter.close();
     }
 
     public File getDocumentStorageDir(String documentname) {
@@ -167,6 +258,16 @@ public class SafeActivity extends AppCompatActivity {
         super.onStop();
     }
 }
+
+
+enum OUTPUTFORMAT{
+  TXT(".txt"),PDF(".pdf"),XML(".xml");
+    public String ext;
+    OUTPUTFORMAT(String myext){
+        ext = myext;
+    }
+}
+
 
 
 
