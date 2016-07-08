@@ -17,20 +17,14 @@
 
 
 
-    <Button
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="Backup/Convert"
-        android:id="@+id/convertButton"
-        android:layout_centerVertical="true"
-        android:layout_centerHorizontal="true" />
+
     <Button
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:text="Export"
-        android:layout_below="@+id/convertButton"
         android:id="@+id/exportButton"
         android:layout_centerVertical="true"
+        android:enabled="false"
         android:layout_centerHorizontal="true" />
 
     <ProgressBar

@@ -2,6 +2,7 @@ package com.sellsword.aanandchakravarthy.contactssafe;
 
 import android.Manifest;
 import android.app.Activity;
+import android.content.ActivityNotFoundException;
 import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
@@ -10,6 +11,7 @@ import android.content.pm.PackageManager;
 import android.graphics.Canvas;
 import android.graphics.Paint;
 import android.graphics.Rect;
+import android.net.Uri;
 import android.os.Environment;
 import android.print.PrintAttributes;
 import android.print.pdf.PrintedPdfDocument;
@@ -18,7 +20,10 @@ import android.support.v4.content.ContextCompat;
 import android.support.v4.content.LocalBroadcastManager;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
+import android.support.v7.widget.PopupMenu;
 import android.util.Log;
+import android.view.MenuInflater;
+import android.view.MenuItem;
 import android.view.View;
 import android.widget.Button;
 import android.widget.ProgressBar;
@@ -27,10 +32,19 @@ import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.OutputStreamWriter;
+import java.text.DateFormat;
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Date;
 
 import android.graphics.pdf.PdfDocument;
+import android.widget.Toast;
+//TODO items
+//1)Add icon for app
+//2)Add support for MOS permission dialog for external storage access
+
+
 
 public class SafeActivity extends AppCompatActivity {
     private static final int MY_PERMISSIONS_REQUEST_READ_CONTACTS = 73;
@@ -58,7 +72,6 @@ public class SafeActivity extends AppCompatActivity {
     }
 
     private void startService(){
-        bar.setVisibility(View.VISIBLE);
         Intent serviceIntent = new Intent();
         serviceIntent.setClass(getApplicationContext(),MyService.class);
         startService(serviceIntent);
@@ -72,50 +85,73 @@ public class SafeActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_safe);
         thisActivity = this;
-        bar = (ProgressBar)findViewById(R.id.progressBar);
-        bar.setVisibility(View.INVISIBLE);
+        mycontacts = new ArrayList<ContactRep>();
+        //bar = (ProgressBar)findViewById(R.id.progressBar);
+        //bar.setVisibility(View.INVISIBLE);
+        if (ContextCompat.checkSelfPermission(thisActivity,
+                Manifest.permission.READ_CONTACTS)
+                != PackageManager.PERMISSION_GRANTED) {
+
+            // Should we show an explanation?
+
+            ActivityCompat.requestPermissions(thisActivity,
+                    new String[]{Manifest.permission.READ_CONTACTS},MY_PERMISSIONS_REQUEST_READ_CONTACTS);
+        }
+        else{
+            startService();
+        }
+
         exportBtn = (Button) findViewById(R.id.exportButton);
         exportBtn.setOnClickListener(new View.OnClickListener(){
             @Override
             public void onClick(View v){
-                Collections.sort(mycontacts);
+
+                PopupMenu popup = new PopupMenu(thisActivity, v);
+                MenuInflater inflater = popup.getMenuInflater();
+                popup.setOnMenuItemClickListener(new PopupMenu.OnMenuItemClickListener(){
+
+                    @Override
+                    public boolean onMenuItemClick(MenuItem item) {
+                        switch (item.getItemId()) {
+                            case R.id.topdfmenu:
+                                exportToFile(mycontacts,OUTPUTFORMAT.PDF);
+                                return true;
+                            case R.id.totxtmenu:
+                                exportToFile(mycontacts,OUTPUTFORMAT.TXT);
+                                return true;
+                            case R.id.toxmlmenu:
+                                return true;
+                            default:
+                                return false;
+                        }
+                    }
+                });
+
+                inflater.inflate(R.menu.exportformats, popup.getMenu());
+                popup.show();
+
+
+
                 //exportToFile(mycontacts,OUTPUTFORMAT.TXT);
-                exportToFile(mycontacts,OUTPUTFORMAT.PDF);
+                //exportToFile(mycontacts,OUTPUTFORMAT.PDF);
             }
         });
-        convertBtn = (Button)findViewById(R.id.convertButton);
-        mycontacts = new ArrayList<ContactRep>();
-        convertBtn.setOnClickListener(new View.OnClickListener(){
-            @Override
-            public void onClick(View v) {
-                if (ContextCompat.checkSelfPermission(thisActivity,
-                        Manifest.permission.READ_CONTACTS)
-                        != PackageManager.PERMISSION_GRANTED) {
 
-                    // Should we show an explanation?
-
-                    ActivityCompat.requestPermissions(thisActivity,
-                            new String[]{Manifest.permission.READ_CONTACTS},MY_PERMISSIONS_REQUEST_READ_CONTACTS);
-                }
-                else{
-                    startService();
-            }
-        }
-        });
 
         receiver = new BroadcastReceiver() {
             @Override
             public void onReceive(Context context, Intent intent) {
                 //String s = intent.getStringExtra(MyService.VASANTH_NO);
                 // do something here.
-                int val = bar.getProgress();
-                val = intent.getIntExtra(MyService.PERCENT,0);
-                bar.setProgress(val);
+                int val = intent.getIntExtra(MyService.PERCENT,0);
+                //bar.setProgress(val);
                 Log.d("vasanth","progress is " + val);
                 ContactRep rep = (ContactRep)intent.getParcelableExtra(MyService.CONTACT);
                 mycontacts.add(rep);
                 if(val == 100){
-                    bar.setVisibility(View.INVISIBLE);
+                    //bar.setVisibility(View.INVISIBLE);
+                    Collections.sort(mycontacts);
+                    exportBtn.setEnabled(true);
                 }
             }
         };
@@ -129,6 +165,12 @@ public class SafeActivity extends AppCompatActivity {
         );
     }
 
+    private String get_filename(){
+        DateFormat dateFormat = new SimpleDateFormat("yy_MM_dd_HH_mm");
+        Date date = new Date();
+        return "contacts_" + dateFormat.format(date); //2014/08/06 15:59:48
+    }
+
     public void exportToFile(ArrayList<ContactRep> contactsrep,OUTPUTFORMAT format)  {
         //File txtfile = getDocumentStorageDir("sample.txt");
         File path = Environment.getExternalStoragePublicDirectory(
@@ -136,7 +178,7 @@ public class SafeActivity extends AppCompatActivity {
         Log.d("vasanth",path.getAbsolutePath());
         Log.d("vasanth","size is " + contactsrep.size());
 
-        File txtfile = new File(path, "sample" + format.ext);
+        File txtfile = new File(path, get_filename() + format.ext);
         try {
             if(!path.mkdirs()){
                 Log.d("vasanth","Directory not created");
@@ -147,6 +189,17 @@ public class SafeActivity extends AppCompatActivity {
             }
             else if (format == OUTPUTFORMAT.PDF){
                 writeToPDFContents(fos,contactsrep);
+                try {
+                    Intent intent = new Intent(Intent.ACTION_VIEW);
+                    intent.setDataAndType(Uri.fromFile(txtfile), "application/pdf");
+                    intent.setFlags(Intent.FLAG_ACTIVITY_NO_HISTORY);
+                    startActivity(intent);
+                }
+                catch(ActivityNotFoundException anfe){
+                    Toast.makeText(thisActivity,
+                            "No Application Available to View PDF",
+                            Toast.LENGTH_SHORT).show();
+                }
             }
             else if (format == OUTPUTFORMAT.XML){
                 //TODO
