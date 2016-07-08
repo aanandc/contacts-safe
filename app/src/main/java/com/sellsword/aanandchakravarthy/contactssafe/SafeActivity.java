@@ -9,6 +9,7 @@ import android.content.IntentFilter;
 import android.content.pm.PackageManager;
 import android.graphics.Canvas;
 import android.graphics.Paint;
+import android.graphics.Rect;
 import android.os.Environment;
 import android.print.PrintAttributes;
 import android.print.pdf.PrintedPdfDocument;
@@ -27,6 +28,8 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.OutputStreamWriter;
 import java.util.ArrayList;
+import java.util.Collections;
+
 import android.graphics.pdf.PdfDocument;
 
 public class SafeActivity extends AppCompatActivity {
@@ -75,6 +78,7 @@ public class SafeActivity extends AppCompatActivity {
         exportBtn.setOnClickListener(new View.OnClickListener(){
             @Override
             public void onClick(View v){
+                Collections.sort(mycontacts);
                 //exportToFile(mycontacts,OUTPUTFORMAT.TXT);
                 exportToFile(mycontacts,OUTPUTFORMAT.PDF);
             }
@@ -131,6 +135,7 @@ public class SafeActivity extends AppCompatActivity {
                 Environment.DIRECTORY_DOCUMENTS);
         Log.d("vasanth",path.getAbsolutePath());
         Log.d("vasanth","size is " + contactsrep.size());
+
         File txtfile = new File(path, "sample" + format.ext);
         try {
             if(!path.mkdirs()){
@@ -178,8 +183,22 @@ public class SafeActivity extends AppCompatActivity {
     private void writeToPDFContents(FileOutputStream fos,ArrayList<ContactRep> contactsrep) throws IOException {
         // open a new document
         //contactsrep = duplicateContacts(contactsrep);
+        Paint black = new Paint();
+        black.setAntiAlias(true);
+        black.setARGB(255, 0, 0, 0);
+        black.setTextSize(16);
         PrintedPdfDocument document = new PrintedPdfDocument(this,
                 getPrintAttributes());
+        int maxwidth = 0;
+        for(ContactRep myrep:contactsrep){
+             Rect bound = new Rect();
+             black.getTextBounds(myrep.name,0,myrep.name.length()-1,bound);
+            if (bound.width()> maxwidth){
+                maxwidth = bound.width();
+            }
+        }
+        Log.d("vasanth" ,"  maxwidth " + maxwidth);
+        //Log.d("vasanth","maxlen is " + maxnamelen);
         // start a page
         int pageno = 0;
         PdfDocument.Page page = document.startPage(pageno);
@@ -187,20 +206,21 @@ public class SafeActivity extends AppCompatActivity {
         //View content = getContentView();
         Canvas mycanvas = page.getCanvas();
 
-        Paint black = new Paint();
-        black.setAntiAlias(true);
-        black.setARGB(255, 0, 0, 0);
-        black.setTextSize(16);
+
         //mycanvas.drawPaint(black);
         String output = new String();
+        String phonenos = new String();
         int x = 10;
         int y = 25;
         int height = mycanvas.getHeight();
 
         for(ContactRep rep:contactsrep){
+            x = 10;
             output = rep.name;
+            phonenos = "";
+
             for(String no:rep.phoneno){
-                output = output + " " + no;
+                phonenos  = phonenos + " " + no;
             }
             if(y >= height){
                 y = 25;
@@ -209,10 +229,21 @@ public class SafeActivity extends AppCompatActivity {
                 page = document.startPage(pageno);
                 mycanvas = page.getCanvas();
             }
+            Log.d("vasanth", "output is  " +  output.toString());
+            Rect myrect = new Rect();
             mycanvas.drawText(output,x,y,black);
+
+            black.getTextBounds(output,0,output.length()-1,myrect);
+            //black.setStyle(Paint.Style.STROKE);
+            Rect mytransRect = new Rect(x,y,x+myrect.width(),y+myrect.height() );
+
+           // mycanvas.drawRect(mytransRect,black);
+            x = x + maxwidth + 10;
+            mycanvas.drawText(phonenos,x,y,black);
+
             y = y + 20;
         }
-        Log.d("vasanth",output.toString());
+
 
         //page.
 

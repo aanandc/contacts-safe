@@ -8,8 +8,14 @@ import java.util.ArrayList;
 /**
  * Created by aanand.chakravarthy on 7/4/2016.
  */
-public class ContactRep implements Parcelable {
+public class ContactRep implements Parcelable,Comparable<ContactRep> {
     String name;
+
+    @Override
+    public int compareTo(ContactRep another) {
+        return this.name.compareTo(another.name);
+    }
+
     ArrayList<String> phoneno;
 
     public ContactRep(){
