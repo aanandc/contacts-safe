@@ -22,6 +22,7 @@ import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
 import android.support.v7.widget.PopupMenu;
 import android.util.Log;
+import android.util.Xml;
 import android.view.MenuInflater;
 import android.view.MenuItem;
 import android.view.View;
@@ -40,6 +41,8 @@ import java.util.Date;
 
 import android.graphics.pdf.PdfDocument;
 import android.widget.Toast;
+
+import org.xmlpull.v1.XmlSerializer;
 //TODO items
 //1)Add icon for app
 //2)Add support for MOS permission dialog for external storage access
@@ -50,6 +53,8 @@ public class SafeActivity extends AppCompatActivity {
     private static final int MY_PERMISSIONS_REQUEST_READ_CONTACTS = 73;
     Button convertBtn = null;
     Button exportBtn = null;
+    long starttime = 0;
+
     BroadcastReceiver receiver;
     ProgressBar bar;
     Activity thisActivity = null;
@@ -83,6 +88,8 @@ public class SafeActivity extends AppCompatActivity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        starttime  = System.currentTimeMillis();
+
         setContentView(R.layout.activity_safe);
         thisActivity = this;
         mycontacts = new ArrayList<ContactRep>();
@@ -120,6 +127,8 @@ public class SafeActivity extends AppCompatActivity {
                                 exportToFile(mycontacts,OUTPUTFORMAT.TXT);
                                 return true;
                             case R.id.toxmlmenu:
+                                exportToFile(mycontacts,OUTPUTFORMAT.XML);
+                                //exportToFile(mycontacts,OUTPUTFORMAT.PDF);
                                 return true;
                             default:
                                 return false;
@@ -189,20 +198,13 @@ public class SafeActivity extends AppCompatActivity {
             }
             else if (format == OUTPUTFORMAT.PDF){
                 writeToPDFContents(fos,contactsrep);
-                try {
-                    Intent intent = new Intent(Intent.ACTION_VIEW);
-                    intent.setDataAndType(Uri.fromFile(txtfile), "application/pdf");
-                    intent.setFlags(Intent.FLAG_ACTIVITY_NO_HISTORY);
-                    startActivity(intent);
-                }
-                catch(ActivityNotFoundException anfe){
-                    Toast.makeText(thisActivity,
-                            "No Application Available to View PDF",
-                            Toast.LENGTH_SHORT).show();
-                }
+                startHandlingActivity(txtfile,"application/pdf");
+
             }
             else if (format == OUTPUTFORMAT.XML){
                 //TODO
+                writeToXML(fos,contactsrep);
+                startHandlingActivity(txtfile,"text/xml");
             }
             fos.flush();
             fos.close();
@@ -212,6 +214,20 @@ public class SafeActivity extends AppCompatActivity {
             Log.e("vasanth","exception when handling file");
         }
 
+    }
+
+    private void startHandlingActivity(File txtfile,String targetMimetype){
+        try {
+            Intent intent = new Intent(Intent.ACTION_VIEW);
+            intent.setDataAndType(Uri.fromFile(txtfile), targetMimetype);
+            intent.setFlags(Intent.FLAG_ACTIVITY_NO_HISTORY);
+            startActivity(intent);
+        }
+        catch(ActivityNotFoundException anfe){
+            Toast.makeText(thisActivity,
+                    "No Application Available to View" + targetMimetype,
+                    Toast.LENGTH_SHORT).show();
+        }
     }
 
     private PrintAttributes getPrintAttributes() {
@@ -232,7 +248,30 @@ public class SafeActivity extends AppCompatActivity {
         }
         return newreps;
     }
+    private void writeToXML(FileOutputStream fos,ArrayList<ContactRep> contactsrep) throws IOException{
+        Log.d("vasanth","write to xml");
+        XmlSerializer serializer = Xml.newSerializer();
+        serializer.setOutput(fos, "UTF-8");
+        serializer.startDocument(null, Boolean.valueOf(true));
+        serializer.setFeature("http://xmlpull.org/v1/doc/features.html#indent-output", true);
+        serializer.startTag(null, "contactlist");
+        for(ContactRep rep:contactsrep){
+            serializer.startTag(null,"contact");
+            serializer.attribute(null,"name",rep.name);
+            serializer.startTag(null,"phonenos");
+            for(String no:rep.phoneno){
+                serializer.startTag(null,"no");
+                serializer.attribute(null,"phoneno",no);
+                serializer.endTag(null,"no");
+            }
+            serializer.endTag(null,"phonenos");
+            serializer.endTag(null,"contact");
+        }
+        serializer.endTag(null,"contactlist");
+        serializer.endDocument();
+        serializer.flush();
 
+    }
     private void writeToPDFContents(FileOutputStream fos,ArrayList<ContactRep> contactsrep) throws IOException {
         // open a new document
         //contactsrep = duplicateContacts(contactsrep);
@@ -334,6 +373,13 @@ public class SafeActivity extends AppCompatActivity {
             Log.e("vasanth", "Directory not created");
         }
         return file;
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        Log.d("vasanth","it look time " + (System.currentTimeMillis()-starttime) +  "milliseconds to resume");
+
     }
 
     @Override
