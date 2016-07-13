@@ -13,7 +13,8 @@
     <TextView
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="Convert your contacts to a printable format !!!" />
+        android:id="@+id/helptext"
+        android:text='Fileformat contacts_yy_mm_dd_hh_mm.[ext] stored in external storage "Documents" folder' />
 
 
 
@@ -27,15 +28,5 @@
         android:enabled="false"
         android:layout_centerHorizontal="true" />
 
-    <ProgressBar
 
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:id="@+id/progressBar"
-        android:layout_above="@+id/convertButton"
-        style="?android:attr/progressBarStyleHorizontal"
-        android:layout_centerHorizontal="true"
-        android:layout_marginBottom="58dp"
-        android:indeterminate="false"
-        android:max="100" />
 </RelativeLayout>

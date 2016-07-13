@@ -40,6 +40,7 @@ import java.util.Collections;
 import java.util.Date;
 
 import android.graphics.pdf.PdfDocument;
+import android.widget.TextView;
 import android.widget.Toast;
 
 import org.xmlpull.v1.XmlSerializer;
@@ -51,6 +52,7 @@ import org.xmlpull.v1.XmlSerializer;
 
 public class SafeActivity extends AppCompatActivity {
     private static final int MY_PERMISSIONS_REQUEST_READ_CONTACTS = 73;
+    private static final int MY_PERMISSIONS_REQUEST_WRITE_EXTENAL_STOAGE = 74;
     Button convertBtn = null;
     Button exportBtn = null;
     long starttime = 0;
@@ -70,7 +72,27 @@ public class SafeActivity extends AppCompatActivity {
                     //Got the permission
                     startService();
                 }
+                else{
+                    Toast.makeText(thisActivity,
+                            "Permission to read contacts required for the application to work",
+                            Toast.LENGTH_LONG).show();
+                    exportBtn.setEnabled(false);
+                }
             }
+            break;
+            case MY_PERMISSIONS_REQUEST_WRITE_EXTENAL_STOAGE:
+                if (grantResults.length > 0
+                        && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+
+                }
+                else{
+                    Toast.makeText(thisActivity,
+                            "Permission to write to external storage required for the application to work",
+                            Toast.LENGTH_LONG).show();
+                    exportBtn.setEnabled(false);
+                }
+                break;
+
 
         }
 
@@ -108,6 +130,22 @@ public class SafeActivity extends AppCompatActivity {
             startService();
         }
 
+        //Check if we can write to external storage..
+        if (ContextCompat.checkSelfPermission(thisActivity,
+                Manifest.permission.WRITE_EXTERNAL_STORAGE)
+                != PackageManager.PERMISSION_GRANTED) {
+
+            // Should we show an explanation?
+
+            ActivityCompat.requestPermissions(thisActivity,
+                    new String[]{Manifest.permission.WRITE_EXTERNAL_STORAGE},MY_PERMISSIONS_REQUEST_WRITE_EXTENAL_STOAGE);
+        }
+
+
+        String documentfolder = Environment.getExternalStoragePublicDirectory(
+                Environment.DIRECTORY_DOCUMENTS).getAbsolutePath();
+        TextView helptext = (TextView) findViewById(R.id.helptext);
+        helptext.setText(helptext.getText()+ " (" + documentfolder + ")");
         exportBtn = (Button) findViewById(R.id.exportButton);
         exportBtn.setOnClickListener(new View.OnClickListener(){
             @Override
@@ -195,6 +233,7 @@ public class SafeActivity extends AppCompatActivity {
             FileOutputStream fos = new FileOutputStream(txtfile);
             if (format == OUTPUTFORMAT.TXT){
                 writeTextContents(fos,contactsrep);
+                startHandlingActivity(txtfile,"text/plain");
             }
             else if (format == OUTPUTFORMAT.PDF){
                 writeToPDFContents(fos,contactsrep);
@@ -227,6 +266,27 @@ public class SafeActivity extends AppCompatActivity {
             Toast.makeText(thisActivity,
                     "No Application Available to View" + targetMimetype,
                     Toast.LENGTH_SHORT).show();
+            File documentfolder = new File(Environment.getExternalStoragePublicDirectory(
+                    Environment.DIRECTORY_DOCUMENTS).getAbsolutePath());
+            Uri selectedUri = Uri.parse(Environment.getExternalStoragePublicDirectory(
+                    Environment.DIRECTORY_DOCUMENTS).getAbsolutePath());
+            Uri selectedUri2 = Uri.fromFile(documentfolder);
+            Intent intent = new Intent(Intent.ACTION_VIEW);
+            intent.setDataAndType(selectedUri2, "resource/folder");
+
+            if (intent.resolveActivityInfo(getPackageManager(), 0) != null)
+            {
+                startActivity(intent);
+            }
+            else
+            {
+                // if you reach this place, it means there is no any file
+                // explorer app installed on your device
+                Toast.makeText(thisActivity,
+                        "No Application Available to View folder " + Environment.getExternalStoragePublicDirectory(
+                                Environment.DIRECTORY_DOCUMENTS).getAbsolutePath(),
+                        Toast.LENGTH_SHORT).show();
+            }
         }
     }
 
